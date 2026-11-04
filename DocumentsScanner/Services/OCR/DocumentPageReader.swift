@@ -13,7 +13,8 @@ struct DocumentPageReader: DocumentScanning {
                     PreparedPage(
                         index: prepared.count,
                         embeddedText: page.embeddedText,
-                        imageData: page.imageData
+                        imageData: page.imageData,
+                        previewSource: page.previewSource
                     )
                 )
             }
@@ -53,7 +54,14 @@ struct DocumentPageReader: DocumentScanning {
                 let image = try PDFPageRasterizer.jpegData(documentURL: url, pageNumber: index + 1)
                 pages.append(PreparedPage(index: index, embeddedText: nil, imageData: image))
             } else {
-                pages.append(PreparedPage(index: index, embeddedText: text, imageData: nil))
+                pages.append(
+                    PreparedPage(
+                        index: index,
+                        embeddedText: text,
+                        imageData: nil,
+                        previewSource: PageSource(fileURL: url, pdfPage: index + 1)
+                    )
+                )
             }
         }
         return pages

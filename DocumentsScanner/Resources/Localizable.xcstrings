@@ -221,6 +221,17 @@
         }
       }
     },
+    "From this page": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "From this page"
+          }
+        }
+      }
+    },
     "History": {
       "extractionState": "manual",
       "localizations": {

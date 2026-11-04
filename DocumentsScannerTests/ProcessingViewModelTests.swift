@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 import Testing
 @testable import DocumentsScanner
@@ -150,6 +151,27 @@ struct ProcessingViewModelTests {
         #expect(session.document(id: id) == nil)
         #expect(session.reading(id: id) == nil)
     }
+
+    @Test func livePageKeepsTheLinesBeingRead() async {
+        let session = InMemoryDocumentSessionStore()
+        let id = session.stage(.pages([.image(Data([1]))]))
+        let line = ScanLine(
+            index: 0,
+            text: "Rent is due",
+            bounds: CGRect(x: 0.1, y: 0.2, width: 0.7, height: 0.04)
+        )
+        let viewModel = ProcessingViewModel(
+            documentID: id,
+            session: session,
+            recognizer: LineRecognizer(line: line),
+            analyzer: ImmediateFallbackAnalyzer()
+        )
+
+        await viewModel.run(reduceMotion: true)
+
+        #expect(viewModel.livePage?.lines.map(\.text) == ["Rent is due"])
+        #expect(viewModel.livePage?.activity == .readingLines)
+    }
 }
 
 private struct ScriptedRecognizer: TextRecognizing {
@@ -158,18 +180,43 @@ private struct ScriptedRecognizer: TextRecognizing {
 
     func recognize(
         _ job: RecognitionJob,
-        onPage: @escaping @Sendable (Int, Int) -> Void
+        onPage: @escaping @Sendable (ScanFrame) -> Void
     ) async throws -> [RecognizedPage] {
         if let error { throw error }
-        onPage(pages.count, pages.count)
+        onPage(ScanFrame(
+            pageIndex: 0,
+            pageCount: max(pages.count, 1),
+            imageJPEG: nil,
+            lines: [],
+            activity: .sweeping
+        ))
         return pages
+    }
+}
+
+private struct LineRecognizer: TextRecognizing {
+    let line: ScanLine
+
+    func recognize(
+        _ job: RecognitionJob,
+        onPage: @escaping @Sendable (ScanFrame) -> Void
+    ) async throws -> [RecognizedPage] {
+        onPage(ScanFrame(
+            pageIndex: 0,
+            pageCount: 1,
+            imageJPEG: Data([9]),
+            lines: [line],
+            activity: .readingLines
+        ))
+        await Task.yield()
+        return [RecognizedPage(index: 0, text: line.text)]
     }
 }
 
 private struct SlowRecognizer: TextRecognizing {
     func recognize(
         _ job: RecognitionJob,
-        onPage: @escaping @Sendable (Int, Int) -> Void
+        onPage: @escaping @Sendable (ScanFrame) -> Void
     ) async throws -> [RecognizedPage] {
         try await Task.sleep(for: .milliseconds(400))
         try Task.checkCancellation()

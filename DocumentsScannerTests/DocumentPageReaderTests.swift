@@ -12,6 +12,7 @@ struct DocumentPageReaderTests {
         #expect(pages.count == 2)
         #expect(pages[0].embeddedText?.contains("Tenant shall pay rent") == true)
         #expect(pages[0].imageData == nil)
+        #expect(pages[0].previewSource?.pdfPage == 1)
         #expect(pages[1].embeddedText == nil)
         #expect((pages[1].imageData?.isEmpty) == false)
     }

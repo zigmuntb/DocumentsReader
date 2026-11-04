@@ -14,7 +14,7 @@ struct LeaseTextRecognizer: TextRecognizing {
 
     func recognize(
         _ job: RecognitionJob,
-        onPage: @escaping @Sendable (Int, Int) -> Void
+        onPage: @escaping @Sendable (ScanFrame) -> Void
     ) async throws -> [RecognizedPage] {
         let prepared: [PreparedPage]
         do {
@@ -28,25 +28,53 @@ struct LeaseTextRecognizer: TextRecognizing {
         }
 
         var recognized: [RecognizedPage] = []
-        for (offset, page) in prepared.enumerated() {
+        for page in prepared {
             try Task.checkCancellation()
-            let raw = try await text(for: page)
+            let preview = previewImage(for: page)
+            onPage(ScanFrame(
+                pageIndex: page.index,
+                pageCount: prepared.count,
+                imageJPEG: preview,
+                lines: [],
+                activity: .sweeping
+            ))
+            let read = try await contents(of: page, preview: preview)
+            onPage(ScanFrame(
+                pageIndex: page.index,
+                pageCount: prepared.count,
+                imageJPEG: read.image,
+                lines: read.lines,
+                activity: .readingLines
+            ))
             recognized.append(
-                RecognizedPage(index: page.index, text: LeaseTextNormalizer.normalize(raw))
+                RecognizedPage(index: page.index, text: LeaseTextNormalizer.normalize(read.raw))
             )
-            onPage(offset + 1, prepared.count)
         }
         return recognized
     }
 
-    private func text(for page: PreparedPage) async throws -> String {
+    private func previewImage(for page: PreparedPage) -> Data? {
+        if let imageData = page.imageData { return imageData }
+        guard let source = page.previewSource else { return nil }
+        return try? PDFPageRasterizer.jpegData(documentURL: source.fileURL, pageNumber: source.pdfPage)
+    }
+
+    private func contents(of page: PreparedPage, preview: Data?) async throws -> PageContents {
         if let embedded = page.embeddedText,
            !embedded.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return embedded
+            let lines = positionedLines(in: embedded, source: page.previewSource)
+            return PageContents(raw: embedded, lines: lines, image: preview)
         }
-        guard let imageData = page.imageData else { return "" }
+        guard let imageData = page.imageData else {
+            return PageContents(raw: "", lines: [], image: preview)
+        }
         do {
-            return try await vision.recognizeText(in: imageData)
+            let seen = try await vision.recognizeText(in: imageData)
+            return PageContents(
+                raw: seen.lines.map(\.text).joined(separator: "\n"),
+                lines: ScanLineLayout.vision(seen.lines),
+                image: seen.displayJPEG
+            )
         } catch is CancellationError {
             throw CancellationError()
         } catch let error as DocumentReadError {
@@ -55,4 +83,17 @@ struct LeaseTextRecognizer: TextRecognizing {
             throw DocumentReadError.recognitionFailed
         }
     }
+
+    private func positionedLines(in text: String, source: PageSource?) -> [ScanLine] {
+        if let source, let lines = ScanLineLayout.pdfLines(fileURL: source.fileURL, pageNumber: source.pdfPage) {
+            return lines
+        }
+        return ScanLineLayout.plainText(text)
+    }
+}
+
+private struct PageContents {
+    var raw: String
+    var lines: [ScanLine]
+    var image: Data?
 }

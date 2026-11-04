@@ -1,5 +1,5 @@
 import Foundation
 
 protocol VisionTextReading: Sendable {
-    func recognizeText(in imageData: Data) async throws -> String
+    func recognizeText(in imageData: Data) async throws -> VisionPage
 }

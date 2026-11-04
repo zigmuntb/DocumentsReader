@@ -1,7 +1,5 @@
 import CoreGraphics
 import Foundation
-import ImageIO
-import UniformTypeIdentifiers
 
 enum PDFPageRasterizer {
     /// Long edge stays under 2000 px. Letter size is rendered at 2x, which is enough for accurate OCR.
@@ -42,24 +40,6 @@ enum PDFPageRasterizer {
         guard let image = context.makeImage() else {
             throw DocumentReadError.unreadableFile
         }
-        return try jpegData(from: image)
-    }
-
-    private static func jpegData(from image: CGImage) throws -> Data {
-        let data = NSMutableData()
-        guard let destination = CGImageDestinationCreateWithData(
-            data,
-            UTType.jpeg.identifier as CFString,
-            1,
-            nil
-        ) else {
-            throw DocumentReadError.unreadableFile
-        }
-        let options = [kCGImageDestinationLossyCompressionQuality: 0.82] as CFDictionary
-        CGImageDestinationAddImage(destination, image, options)
-        guard CGImageDestinationFinalize(destination) else {
-            throw DocumentReadError.unreadableFile
-        }
-        return data as Data
+        return try ImageJPEG.data(from: image)
     }
 }
