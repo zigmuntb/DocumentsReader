@@ -29,23 +29,120 @@ struct ResultView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
+    @ViewBuilder
     private func loaded(_ presentation: ChecklistPresentation) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: DSSpacing.l) {
-                Text(String(localized: "Not legal advice. Each item quotes the lease."))
-                    .font(DSFont.body)
-                    .foregroundStyle(DSColor.inkSecondary)
-                if presentation.hasLockedRows {
-                    Text(String(localized: "The first two items are free. The rest unlock with Pro."))
+        let visible = viewModel.filtered ?? presentation
+        VStack(spacing: 0) {
+            if !presentation.sections.isEmpty {
+                filters
+            }
+            ScrollView {
+                VStack(alignment: .leading, spacing: DSSpacing.l) {
+                    Text(String(localized: "Not legal advice. Each item quotes the lease."))
                         .font(DSFont.body)
-                        .foregroundStyle(DSColor.ink)
+                        .foregroundStyle(DSColor.inkSecondary)
+                    if presentation.hasLockedRows {
+                        Text(String(localized: "The first two items are free. The rest unlock with Pro."))
+                            .font(DSFont.body)
+                            .foregroundStyle(DSColor.ink)
+                    }
+                    if visible.sections.isEmpty {
+                        Text(String(localized: "Nothing matches those words."))
+                            .font(DSFont.body)
+                            .foregroundStyle(DSColor.inkSecondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    } else {
+                        ForEach(visible.sections) { section in
+                            sectionView(section)
+                        }
+                    }
                 }
-                ForEach(presentation.sections) { section in
-                    sectionView(section)
+                .padding(DSSpacing.l)
+            }
+            .scrollDismissesKeyboard(.interactively)
+        }
+    }
+
+    private var filters: some View {
+        VStack(alignment: .leading, spacing: DSSpacing.s) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: DSSpacing.xs) {
+                    filterChip(title: String(localized: "All"), isSelected: viewModel.selectedSection == nil) {
+                        viewModel.selectedSection = nil
+                    }
+                    ForEach(viewModel.availableSections, id: \.self) { kind in
+                        filterChip(title: kind.title, isSelected: viewModel.selectedSection == kind) {
+                            viewModel.selectedSection = viewModel.selectedSection == kind ? nil : kind
+                        }
+                    }
                 }
             }
-            .padding(DSSpacing.l)
+            searchField
         }
+        .padding(.horizontal, DSSpacing.l)
+        .padding(.top, DSSpacing.m)
+        .padding(.bottom, DSSpacing.s)
+        .background(DSColor.paper)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(DSColor.hairline)
+                .frame(height: 1)
+        }
+    }
+
+    private var searchField: some View {
+        HStack(spacing: DSSpacing.s) {
+            TextField(String(localized: "Search found words"), text: query)
+                .font(DSFont.body)
+                .foregroundStyle(DSColor.ink)
+                .tint(DSColor.primary)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .submitLabel(.search)
+            if !viewModel.query.isEmpty {
+                Button(String(localized: "Clear")) {
+                    viewModel.query = ""
+                }
+                .font(DSFont.label)
+                .foregroundStyle(DSColor.secondary)
+            }
+        }
+        .padding(.horizontal, DSSpacing.m)
+        .frame(minHeight: DSSpacing.touch)
+        .background(DSColor.surface, in: RoundedRectangle(cornerRadius: DSRadius.m, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: DSRadius.m, style: .continuous)
+                .strokeBorder(DSColor.hairline, lineWidth: 1)
+        }
+    }
+
+    private var query: Binding<String> {
+        Binding(
+            get: { viewModel.query },
+            set: { viewModel.query = $0 }
+        )
+    }
+
+    private func filterChip(title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(DSFont.label)
+                .foregroundStyle(isSelected ? DSColor.onInverted : DSColor.ink)
+                .lineLimit(1)
+                .padding(.horizontal, DSSpacing.m)
+                .frame(minHeight: DSSpacing.touch)
+                .background(
+                    isSelected ? DSColor.inverted : DSColor.surface,
+                    in: RoundedRectangle(cornerRadius: DSRadius.m, style: .continuous)
+                )
+                .overlay {
+                    RoundedRectangle(cornerRadius: DSRadius.m, style: .continuous)
+                        .strokeBorder(isSelected ? Color.clear : DSColor.hairline, lineWidth: 1)
+                }
+        }
+        .buttonStyle(.plain)
+        .fixedSize(horizontal: true, vertical: false)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     private func sectionView(_ section: ChecklistPresentation.Section) -> some View {
@@ -69,7 +166,7 @@ struct ResultView: View {
                     .buttonStyle(.plain)
                     .accessibilityElement(children: .combine)
                     .accessibilityAddTraits(.isButton)
-                    .accessibilityHint(String(localized: "Opens the full clause"))
+                    .accessibilityHint(String(localized: "Opens this clause highlighted in the lease."))
                 case .locked:
                     Button {
                         viewModel.unlock()

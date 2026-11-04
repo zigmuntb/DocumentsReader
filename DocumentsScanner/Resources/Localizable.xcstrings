@@ -23,6 +23,17 @@
         }
       }
     },
+    "All": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "All"
+          }
+        }
+      }
+    },
     "A year at a time, or one lifetime purchase.": {
       "extractionState": "manual",
       "localizations": {
@@ -129,6 +140,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Choose a PDF or an image. The file stays on this device."
+          }
+        }
+      }
+    },
+    "Clear": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear"
           }
         }
       }
@@ -272,6 +294,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Import"
+          }
+        }
+      }
+    },
+    "In the lease": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In the lease"
           }
         }
       }
@@ -485,6 +518,17 @@
         }
       }
     },
+    "Nothing matches those words.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nothing matches those words."
+          }
+        }
+      }
+    },
     "Not legal advice. Each item quotes the lease.": {
       "extractionState": "manual",
       "localizations": {
@@ -540,13 +584,13 @@
         }
       }
     },
-    "Opens the full clause": {
+    "Opens this clause highlighted in the lease.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Opens the full clause"
+            "value": "Opens this clause highlighted in the lease."
           }
         }
       }
@@ -800,6 +844,17 @@
           "stringUnit": {
             "state": "translated",
             "value": "Scan a lease"
+          }
+        }
+      }
+    },
+    "Search found words": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search found words"
           }
         }
       }

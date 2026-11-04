@@ -32,7 +32,11 @@ struct ResultViewModelTests {
             session: store,
             purchases: ScriptedPurchases()
         )
-        #expect(detail.state == .loaded(item))
+        #expect(
+            detail.state == .loaded(
+                ItemDetailContent(item: item, pageIndex: 0, pageText: item.quote)
+            )
+        )
     }
 
     @Test func aThirdItemStaysLockedUntilPro() {
@@ -78,17 +82,64 @@ struct ResultViewModelTests {
             return nil
         }
         #expect(openQuotes == items.map(\.quote))
-        #expect(detail.state == .loaded(items[2]))
+        guard case .loaded(let content) = detail.state else {
+            Issue.record("Expected the clause")
+            return
+        }
+        #expect(content.item == items[2])
+        #expect(QuoteSpan.parts(of: content.item.quote, in: content.pageText)?.match == content.item.quote)
     }
 
-    private func model(
-        items: [ChecklistItem],
-        purchases: ScriptedPurchases = ScriptedPurchases()
-    ) -> (ResultViewModel, InMemoryDocumentSessionStore, UUID) {
+    @Test func searchAndSectionNarrowTheChecklist() {
+        let tenant = sampleItem(title: "Tenant", quote: "Alice is the tenant.")
+        let rent = sampleItem(title: "Monthly rent", quote: "Rent is $1,500 due on the first.")
+        let (model, _, _) = model(
+            checklist: LeaseChecklist(
+                parties: [tenant],
+                money: [rent],
+                dates: [],
+                obligations: [],
+                questionsBeforeSigning: []
+            )
+        )
+        #expect(model.availableSections == [.parties, .money])
+
+        model.selectedSection = .money
+        #expect(model.filtered?.sections.map(\.kind) == [.money])
+
+        model.query = "alice"
+        #expect(model.filtered?.sections.isEmpty == true)
+
+        model.selectedSection = nil
+        model.query = "150"
+        let rows = model.filtered?.sections.flatMap(\.rows) ?? []
+        #expect(rows == [.open(rent)])
+    }
+
+    @Test func searchLeavesALockedMatchHidden() {
+        let items = [
+            sampleItem(title: "One", quote: "Quote one from the lease."),
+            sampleItem(title: "Two", quote: "Quote two from the lease."),
+            sampleItem(title: "Deposit", quote: "The security deposit is $500.")
+        ]
+        let (model, _, _) = model(items: items)
+        model.query = "security dep"
+        #expect(model.filtered?.sections.flatMap(\.rows) == [.locked(items[2].id)])
+
+        model.query = "zzz"
+        #expect(model.filtered?.sections.isEmpty == true)
+    }
+
+    @Test func detailShowsThePageThatContainsTheQuote() {
+        let quote = "Tenant shall pay rent of $1,500 on the first day."
+        let item = sampleItem(title: "Monthly rent", quote: quote)
         let store = InMemoryDocumentSessionStore()
         let document = RecognizedDocument(
             id: UUID(),
-            pages: [RecognizedPage(index: 0, text: items.map(\.quote).joined(separator: " "))],
+            pages: [
+                RecognizedPage(index: 0, text: "Cover page."),
+                RecognizedPage(index: 1, text: "Intro. \(quote) Utilities are separate.")
+            ],
             isSparse: false
         )
         store.save(
@@ -96,7 +147,7 @@ struct ResultViewModelTests {
                 document: document,
                 outcome: .checklist(
                     LeaseChecklist(
-                        parties: items,
+                        parties: [item],
                         money: [],
                         dates: [],
                         obligations: [],
@@ -105,6 +156,49 @@ struct ResultViewModelTests {
                 )
             )
         )
+        let detail = ItemDetailViewModel(
+            documentID: document.id,
+            itemID: item.id,
+            session: store,
+            purchases: ScriptedPurchases()
+        )
+        guard case .loaded(let content) = detail.state else {
+            Issue.record("Expected the clause")
+            return
+        }
+        #expect(content.pageIndex == 1)
+        #expect(content.pageText == "Intro. \(quote) Utilities are separate.")
+        #expect(QuoteSpan.parts(of: quote, in: content.pageText)?.match == quote)
+    }
+
+    private func model(
+        items: [ChecklistItem],
+        purchases: ScriptedPurchases = ScriptedPurchases()
+    ) -> (ResultViewModel, InMemoryDocumentSessionStore, UUID) {
+        model(
+            checklist: LeaseChecklist(
+                parties: items,
+                money: [],
+                dates: [],
+                obligations: [],
+                questionsBeforeSigning: []
+            ),
+            purchases: purchases
+        )
+    }
+
+    private func model(
+        checklist: LeaseChecklist,
+        purchases: ScriptedPurchases = ScriptedPurchases()
+    ) -> (ResultViewModel, InMemoryDocumentSessionStore, UUID) {
+        let store = InMemoryDocumentSessionStore()
+        let items = checklist.parties + checklist.money + checklist.dates + checklist.obligations + checklist.questionsBeforeSigning
+        let document = RecognizedDocument(
+            id: UUID(),
+            pages: [RecognizedPage(index: 0, text: items.map(\.quote).joined(separator: " "))],
+            isSparse: false
+        )
+        store.save(LeaseReading(document: document, outcome: .checklist(checklist)))
         return (
             ResultViewModel(documentID: document.id, session: store, purchases: purchases),
             store,

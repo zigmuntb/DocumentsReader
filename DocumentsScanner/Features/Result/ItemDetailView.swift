@@ -15,8 +15,8 @@ struct ItemDetailView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             case .locked:
                 locked
-            case .loaded(let item):
-                loaded(item)
+            case .loaded(let content):
+                loaded(content)
             }
         }
         .navigationTitle(String(localized: "Clause"))
@@ -41,23 +41,85 @@ struct ItemDetailView: View {
         }
     }
 
-    private func loaded(_ item: ChecklistItem) -> some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: DSSpacing.l) {
-                Text(String(localized: "Not legal advice. Each item quotes the lease."))
-                    .font(DSFont.body)
-                    .foregroundStyle(DSColor.inkSecondary)
-                DSCard {
-                    ChecklistItemCard(item: item)
+    private func loaded(_ content: ItemDetailContent) -> some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: DSSpacing.l) {
+                    Text(String(localized: "Not legal advice. Each item quotes the lease."))
+                        .font(DSFont.body)
+                        .foregroundStyle(DSColor.inkSecondary)
+                    DSCard {
+                        ChecklistItemCard(item: content.item)
+                    }
+                    if !content.pageText.isEmpty {
+                        passage(content, proxy: proxy)
+                    }
                 }
-                Text(String(localized: "Page \(item.pageIndex + 1)"))
-                    .font(DSFont.eyebrow)
-                    .tracking(DSFont.eyebrowTracking)
-                    .textCase(.uppercase)
-                    .foregroundStyle(DSColor.secondary)
+                .padding(DSSpacing.l)
             }
-            .padding(DSSpacing.l)
         }
+    }
+
+    private func passage(_ content: ItemDetailContent, proxy: ScrollViewProxy) -> some View {
+        VStack(alignment: .leading, spacing: DSSpacing.s) {
+            Text(String(localized: "In the lease"))
+                .font(DSFont.eyebrow)
+                .tracking(DSFont.eyebrowTracking)
+                .textCase(.uppercase)
+                .foregroundStyle(DSColor.secondary)
+                .accessibilityAddTraits(.isHeader)
+            DSCard {
+                VStack(alignment: .leading, spacing: DSSpacing.s) {
+                    Text(String(localized: "Page \(content.pageIndex + 1)"))
+                        .font(DSFont.eyebrow)
+                        .tracking(DSFont.eyebrowTracking)
+                        .textCase(.uppercase)
+                        .foregroundStyle(DSColor.secondary)
+                    LeasePassageView(pageText: content.pageText, quote: content.item.quote) {
+                        Task { @MainActor in
+                            proxy.scrollTo(LeasePassageView.highlightID, anchor: .center)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct LeasePassageView: View {
+    static let highlightID = "lease-quote"
+
+    let pageText: String
+    let quote: String
+    var onHighlightAppear: () -> Void = {}
+
+    var body: some View {
+        let parts = QuoteSpan.parts(of: quote, in: pageText)
+        VStack(alignment: .leading, spacing: DSSpacing.s) {
+            if let parts {
+                if !parts.before.isEmpty {
+                    passageText(parts.before)
+                }
+                DSQuoteBlock(text: parts.match)
+                    .id(Self.highlightID)
+                    .onAppear(perform: onHighlightAppear)
+                if !parts.after.isEmpty {
+                    passageText(parts.after)
+                }
+            } else {
+                passageText(pageText)
+            }
+        }
+        .textSelection(.enabled)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func passageText(_ text: String) -> some View {
+        Text(text)
+            .font(DSFont.body)
+            .foregroundStyle(DSColor.ink)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .textSelection(.enabled)
     }
 }
 
@@ -80,7 +142,12 @@ private struct ItemDetailPreview: View {
         )
         let document = RecognizedDocument(
             id: UUID(),
-            pages: [RecognizedPage(index: 0, text: item.quote)],
+            pages: [
+                RecognizedPage(
+                    index: 0,
+                    text: "This lease is between Alice and Bob. \(item.quote) The term is one year."
+                )
+            ],
             isSparse: false
         )
         store.save(
