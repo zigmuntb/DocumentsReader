@@ -32,11 +32,7 @@ struct ResultViewModelTests {
             session: store,
             purchases: ScriptedPurchases()
         )
-        #expect(
-            detail.state == .loaded(
-                ItemDetailContent(item: item, pageIndex: 0, pageText: item.quote)
-            )
-        )
+        #expect(detail.state == .loaded(item))
     }
 
     @Test func aThirdItemStaysLockedUntilPro() {
@@ -82,12 +78,7 @@ struct ResultViewModelTests {
             return nil
         }
         #expect(openQuotes == items.map(\.quote))
-        guard case .loaded(let content) = detail.state else {
-            Issue.record("Expected the clause")
-            return
-        }
-        #expect(content.item == items[2])
-        #expect(QuoteSpan.parts(of: content.item.quote, in: content.pageText)?.match == content.item.quote)
+        #expect(detail.state == .loaded(items[2]))
     }
 
     @Test func searchAndSectionNarrowTheChecklist() {
@@ -128,47 +119,6 @@ struct ResultViewModelTests {
 
         model.query = "zzz"
         #expect(model.filtered?.sections.isEmpty == true)
-    }
-
-    @Test func detailShowsThePageThatContainsTheQuote() {
-        let quote = "Tenant shall pay rent of $1,500 on the first day."
-        let item = sampleItem(title: "Monthly rent", quote: quote)
-        let store = InMemoryDocumentSessionStore()
-        let document = RecognizedDocument(
-            id: UUID(),
-            pages: [
-                RecognizedPage(index: 0, text: "Cover page."),
-                RecognizedPage(index: 1, text: "Intro. \(quote) Utilities are separate.")
-            ],
-            isSparse: false
-        )
-        store.save(
-            LeaseReading(
-                document: document,
-                outcome: .checklist(
-                    LeaseChecklist(
-                        parties: [item],
-                        money: [],
-                        dates: [],
-                        obligations: [],
-                        questionsBeforeSigning: []
-                    )
-                )
-            )
-        )
-        let detail = ItemDetailViewModel(
-            documentID: document.id,
-            itemID: item.id,
-            session: store,
-            purchases: ScriptedPurchases()
-        )
-        guard case .loaded(let content) = detail.state else {
-            Issue.record("Expected the clause")
-            return
-        }
-        #expect(content.pageIndex == 1)
-        #expect(content.pageText == "Intro. \(quote) Utilities are separate.")
-        #expect(QuoteSpan.parts(of: quote, in: content.pageText)?.match == quote)
     }
 
     private func model(

@@ -298,17 +298,6 @@
         }
       }
     },
-    "In the lease": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "In the lease"
-          }
-        }
-      }
-    },
     "Import PDF or image": {
       "extractionState": "manual",
       "localizations": {
@@ -584,13 +573,13 @@
         }
       }
     },
-    "Opens this clause highlighted in the lease.": {
+    "Opens the full clause": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Opens this clause highlighted in the lease."
+            "value": "Opens the full clause"
           }
         }
       }

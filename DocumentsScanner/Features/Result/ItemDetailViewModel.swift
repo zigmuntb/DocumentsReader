@@ -31,31 +31,14 @@ final class ItemDetailViewModel {
     }
 
     private func resolved() -> ItemDetailState {
-        guard let reading = session.reading(id: documentID),
-              case .checklist(let checklist) = reading.outcome,
-              let item = checklist.item(id: itemID) else {
+        guard case .checklist(let checklist) = session.reading(id: documentID)?.outcome,
+              checklist.item(id: itemID) != nil else {
             return .missing
         }
-        guard access.isOpen(item.id, in: checklist, hasPro: purchases.hasPro) else {
+        guard access.isOpen(itemID, in: checklist, hasPro: purchases.hasPro),
+              let item = checklist.item(id: itemID) else {
             return .locked
         }
-        let page = page(for: item, in: reading.document)
-        return .loaded(
-            ItemDetailContent(
-                item: item,
-                pageIndex: page?.index ?? item.pageIndex,
-                pageText: page?.text ?? ""
-            )
-        )
-    }
-
-    private func page(for item: ChecklistItem, in document: RecognizedDocument) -> RecognizedPage? {
-        let preferred = document.pages.filter { $0.index == item.pageIndex }
-        let others = document.pages.filter { $0.index != item.pageIndex }.sorted { $0.index < $1.index }
-        let ordered = preferred + others
-        if let matched = ordered.first(where: { QuoteSpan.parts(of: item.quote, in: $0.text) != nil }) {
-            return matched
-        }
-        return preferred.first ?? document.pages.min { $0.index < $1.index }
+        return .loaded(item)
     }
 }

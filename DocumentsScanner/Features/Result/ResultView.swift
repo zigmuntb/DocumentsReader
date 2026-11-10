@@ -166,7 +166,7 @@ struct ResultView: View {
                     .buttonStyle(.plain)
                     .accessibilityElement(children: .combine)
                     .accessibilityAddTraits(.isButton)
-                    .accessibilityHint(String(localized: "Opens this clause highlighted in the lease."))
+                    .accessibilityHint(String(localized: "Opens the full clause"))
                 case .locked:
                     Button {
                         viewModel.unlock()
